@@ -1,0 +1,8 @@
+# all intermediate latex files
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
