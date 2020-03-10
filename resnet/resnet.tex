@@ -1,6 +1,7 @@
 \documentclass[10pt]{beamer}
 \usepackage{amsmath} % For math symbols
 \usepackage{centernot}
+\usepackage{graphicx}
 \usetheme{metropolis}
 \usepackage{appendixnumberbeamer}
 
@@ -13,8 +14,8 @@
 \newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
 
 \title{Deep Residual Learning for Image Recognition}
-\subtitle{A critical review}
-\date{\today}
+\subtitle{A Review}
+\date{March 10, 2020}
 \author{Abhishek Ranjan}
 \institute{Toronto, ON}
 % \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
@@ -25,86 +26,174 @@
 
 \begin{frame}{Table of contents}
   \setbeamertemplate{section in toc}[sections numbered]
-  \tableofcontents[hideallsubsections]
+  \tableofcontents [hideallsubsections]
 \end{frame}
 
-\section{Problem Statement}
+\section{The Problem}
 %--------------------------
-	\begin{frame}[fragile]{Deep NN Issues}
+	\begin{frame}[fragile]{Difficulties in Deep NN Training}
 		\begin{enumerate}
-			\item Vanishing/exploding gradients, mostly addressed by:
+			\item Vanishing/exploding gradients; claimed to be addressed by:
 			\begin{itemize}
-				\item BN in forward propagation
-				\item ReLU/PReLU + weight initialization
+				\item Batch Normalization in forward propagation
+				\item ReLU + weight initialization
 			\end{itemize}
-			\item Training degradation, empirically observed by:
-			\begin{itemize}
-				\item Increasing depth $\centernot\implies$ High accuracy
-				\item Difficulty in learning Identity functions
-			\end{itemize}
+			\item Degradation problem (Figure \ref{fig-degradation}):
+				\begin{figure}
+					\centering
+					\includegraphics[width=0.8\textwidth]{degradation-problem.png}
+					\caption{Degradation problem for CIFAR-10}
+					\label{fig-degradation}
+				\end{figure}
 		\end{enumerate}
-		% \item Accuracy degrades on increasing depth
-		% \item Not overfitting as training error increases
-		% \item Not vanishing gradient as training still occurs
-	\begin{center} \textbf{Can we increase depth without degrading accuracy?} \end{center}	
 	\end{frame}
+
+	\begin{frame}[fragile]{Degradation problem}
+		Degradation problem posed as originating from the solver 
+		\begin{itemize}
+			\item Increasing depth $\centernot\implies$ Low error
+			\item Training error is also high $\implies$ Not an overfitting problem
+			\item Possible causes: difficulty in learning Identity functions
+		\end{itemize}
+	Problem statement: \textbf{Can we increase depth without degrading accuracy?} \cite{resnet_he2016}
+	\end{frame}
+
+\section{Fundamental Ideas}
 
 	\begin{frame}[fragile]{Proposed solution}
-		How about forcing Identity shortcuts to blocks?
+		Make it easy for the solver to reach identity mapping		
 		\begin{itemize}
-			\item Add a direct path (Residual connection) for $x$ to reach the output
-			\item Let the original block learns $H(x)$, with the shortcut it learns $F(x) = H(x) - x$
-		\end{itemize}	
+			\item Force identity shortcuts for $x$ to reach the output
+			\item If the original block learns $H(x)$, after shortcut it learns $F(x) = H(x) - x$
+		\end{itemize}
+		Why residuals?
+		\begin{itemize}
+			\item Residuals are easier to learn (evidenced by other areas)
+			\item Solver can move the weights to zero more easily than to identity mapping
+			\item No extra parameters (for most cases)
+		\end{itemize}
+		\small{\textit{Note: No mathematical justification provided in the paper, mostly empirical.}}
 	\end{frame}
 
-	\begin{frame}[fragile]{Benefits of residuals}
+	\begin{frame}[fragile]{Architecture example}
+		\begin{enumerate}
+			\item Start with a deep, plain network, e.g., a VGG n/w with 34 layers (3x3 Convolutional filters)		
+			\item Add shortcut connections (Figure \ref{fig-shortcut})
+				\begin{itemize}
+					\item Identity connections every 2 blocks when dimensions match
+						\begin{figure}
+						\centering
+						\includegraphics[width=0.4\textwidth]{residual_conn}
+						\caption{Identity shortcut example}
+						\label{fig-shortcut}
+						\end{figure}
+					\item When dimensions don't match:
+						\begin{enumerate}
+							\item Use identity mapping with zero-padding (no extra params)
+							\item Use projection shortcut (more params!)
+						\end{enumerate}
+				\end{itemize}
+			\end{enumerate}
+	\end{frame}
+
+	\begin{frame}{Training}
 		\begin{itemize}
-			\item Residuals are easier to learn (evidenced by on learnings from other areas)
-			\item Solver can move the weights to zero more easily than to identity mapping
+			\item Train as usual with SGD + backpropagation
+			\item Batch normalization after convolution before ReLU
+			\item Learn rate $\eta=0.1$, weight decay $\lambda = 0.0001$, momentum $\alpha=0.9$
+			\item Weight initialization \cite{delving_deeper_he2015}: $N(0, \sigma=\sqrt(2/fan_{in}))$
+			\item For bottleneck architecture: use identity shortcuts to avoid complexity 
 		\end{itemize}
 	\end{frame}
 
-
-\section{Architecture}
-	\begin{frame}{Plain network}
-	\end{frame}
-
-	\begin{frame}{Residual connections \cite{he2016deep, he2015deep}}
-	\end{frame}
-
-	\begin{frame}{Training parameters}
-	\end{frame}
-
-\section{Experiments and Results}
+\section{Results and Conclusions}
 	\begin{frame}{Accuracy}
+		Significant improvements in training and validation error across the board
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{results-imagenet-1.png}
+			\caption{Training (bold line) and validation (thin line) error on ImageNet}
+			\label{fig_results_imagenet}
+		\end{figure}
 	\end{frame}
 
 	\begin{frame}{Layer responses}
+		ResNet layer responses are smaller $\implies$ Identity shortcuts pass most information 
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{layer-response.png}
+			\caption{Standard deviation of layer responses on CIFAR-10}
+			\label{fig_layer_response}
+		\end{figure}		
+	\end{frame}
+
+	\begin{frame}{Conclusions}
+		\begin{itemize}
+			\item Proposed a new architecture using residuals to address degradation problem
+			\item Identity shortcuts mostly add no extra parameters
+			\item Significant increase in number of layers possible
+			\item Provided strong empirical evidence of its effectiveness across a wide range of tasks
+			\item Opens up many research areas and raises questions:
+				\begin{itemize}
+					\item What is the nature of the degradation problem?
+					\item Is the degradation problem really separate from unstable gradients problem?
+					\item How do shortcut connections allow deeper networks (mathematically)?
+				\end{itemize}  
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}[standout]
+		Questions and Discussion
 	\end{frame}
 
 %===================================================
 \appendix
 
+\begin{frame}{An ensemble of shallow networks \cite{resnet_as_ensemble_shallow_veit2016}}
+	\begin{itemize}
+		\item A collection of many paths of different length (Figure \ref{fig_multi_path})
+		\item Avoids vanishing gradients by leveraging only the short paths
+		\item Layers behave like ensembles
+	\end{itemize}
+	\begin{figure}
+		\centering
+		\includegraphics[width=\textwidth]{resnet_as_multiple_paths.png}
+		\caption{Unraveled paths of residual connections}
+		\label{fig_multi_path}
+	  \end{figure}
+\end{frame}
+
+\begin{frame}{ResNet as boosting over features \cite{resnet_as_boosting_huang2018}}
+	\begin{itemize}
+		\item ResNet output $\sim$ layer-by-layer boosting 
+			\begin{equation}
+				\begin{split}
+				& g_{t+1}(x) = f_t(g_t(x)) + g_t(x) \\
+				\implies & g_{t+1}(x) - g_t(x) = f_t(g_t(x))  \\
+				\implies & g_{T+1}(x) = \sum_{t=0}^{T}f_t(g_t(x)) \\
+				&s.t., g_0(x)=0, f_0(g_0(x)) = x
+				\end{split}
+			\end{equation}
+		\item ResNet boosts over \textit{representations} and \textit{not estimated labels}
+	\end{itemize}
+\end{frame}
+
 \begin{frame}[allowframebreaks]{References}	
 	\begin{thebibliography}{2}
 
-	\bibitem{he2016deep} 
-	He, Kaiming, et al. "Deep residual learning for image recognition." \textit{Proceedings of the IEEE conference on computer vision and pattern recognition}. 2016.
+	\bibitem{resnet_he2016} 
+	He, Kaiming, et al. "Deep residual learning for image recognition." \textit{CVPR}, 2016.
+	
+	\bibitem{resnet_as_boosting_huang2018} 
+	Huang, Furong, et al. "Learning deep resnet blocks sequentially using boosting theory." \textit{ICML}, 2018.
 
-	\bibitem{he2015deep} 
-	He, Kaiming, et al. "Deep residual learning for image recognition." \textit{Proceedings of the IEEE conference on computer vision and pattern recognition}. 2016.
+	\bibitem{resnet_as_ensemble_shallow_veit2016} 
+	Veit, Andreas, et al. "Residual networks behave like ensembles of relatively shallow networks." \textit{NIPS}, 2016.
+
+	\bibitem{delving_deeper_he2015}
+	He, Kaiming, et al. "Delving deep into rectifiers: Surpassing human-level performance on imagenet classification." \textit{ICCV}, 2015.
 	\end{thebibliography}
 \end{frame} 
-
-
-\begin{frame}{Residuals as shortcuts}
-\end{frame}
-
-\begin{frame}{An ensemble of shallow networks}
-\end{frame}
-
-\begin{frame}{ResNet as feature boosting}
-\end{frame}
 
 \end{document}
 
